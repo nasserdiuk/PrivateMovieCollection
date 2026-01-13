@@ -29,12 +29,14 @@
       </HBox>
    </top>
    <bottom>
-      <HBox alignment="CENTER" prefHeight="100.0" prefWidth="200.0" spacing="20.0" BorderPane.alignment="CENTER">
+      <HBox alignment="CENTER_RIGHT" nodeOrientation="LEFT_TO_RIGHT" prefHeight="100.0" prefWidth="200.0" spacing="20.0" BorderPane.alignment="CENTER">
          <children>
             <Button fx:id="btnAddMovie" mnemonicParsing="false" onAction="#onAddMovieClicked" text="Add Movie" />
             <Button fx:id="btnDeleteMovie" mnemonicParsing="false" onAction="#onDeleteMovieClicked" text="Delete Movie" />
             <Button fx:id="btnPlayMovie" mnemonicParsing="false" text="Play" />
             <Button fx:id="btnSetRating" mnemonicParsing="false" onAction="#onSetRatingClicked" text="Set Rating" />
+            <Button fx:id="btnAddCategory" mnemonicParsing="false" onAction="#onAddCategoryClicked" text="Add Category" />
+            <Button fx:id="btnDeleteCategory" mnemonicParsing="false" onAction="#onDeleteCategoryClicked" text="Delete Category" />
          </children></HBox>
    </bottom>
 

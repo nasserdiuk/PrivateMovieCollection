@@ -100,7 +100,7 @@ public class MainViewController {
             return;
         }
 
-        movieService.deleteMovie(selected);  // if you don't have this method, see step 3
+        movieService.deleteMovie(selected);  
         movieListView.getItems().setAll(movieService.getMovies());
     }
 
@@ -179,11 +179,69 @@ public class MainViewController {
             alert.showAndWait();
         }
     }
+    
+    @FXML 
+    public void onAddCategoryClicked() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Add Category");
+        dialog.setHeaderText("Enter new category name:");
+        dialog.setContentText("Name:");
 
+        Optional<String> result = dialog.showAndWait();
+        if (result.isEmpty()) {
+            return; // user cancelled
+        }
 
+        String name = result.get().trim();
+        if (name.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Invalid input");
+            alert.setHeaderText(null);
+            alert.setContentText("Category name cannot be empty.");
+            alert.showAndWait();
+            return;
+        }
 
+        // prevent duplicates
+        for (Category c : movieService.getCategories()) {
+            if (c.getName().equalsIgnoreCase(name)) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Duplicate category");
+                alert.setHeaderText(null);
+                alert.setContentText("A category with this name already exists.");
+                alert.showAndWait();
+                return;
+            }
+        }
+
+        Category created = movieService.addCategory(name);
+
+        // refresh and select the newly added category
+        categoryListView.getItems().setAll(movieService.getCategories());
+        categoryListView.getSelectionModel().select(created);
+    }
+    
+
+    @FXML
+    public void onDeleteCategoryClicked() {
+        Category selected = categoryListView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            System.out.println("Select a category first");
+            return;
+        }
+
+        // Remove this category from all movies
+        for (Movie m : movieService.getMovies()) {
+            if (m.getCategories().contains(selected)) {
+                movieService.removeCategoryFromMovie(m, selected);
+            }
+        }
+
+        // Remove the category itself
+        movieService.removeCategory(selected);
+
+        // Update UI lists
+        categoryListView.getItems().setAll(movieService.getCategories());
+        movieListView.refresh();
+    }
 }
-
-
-
-
