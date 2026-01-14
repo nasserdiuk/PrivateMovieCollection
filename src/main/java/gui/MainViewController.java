@@ -8,6 +8,8 @@ import javafx.scene.control.TextInputDialog;
 import model.Category;
 import bll.MovieService;
 import model.Movie;
+
+import java.sql.SQLException;
 import java.util.List;
 import bll.MovieService;
 import javafx.stage.FileChooser;
@@ -31,7 +33,7 @@ public class MainViewController {
     public void initialize() {
         categoryListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
-        //  TEST DATA: categories
+       /* //  TEST DATA: categories
         movieService.addCategory("Action");
         movieService.addCategory("Drama");
         movieService.addCategory("Comedy");
@@ -55,7 +57,7 @@ public class MainViewController {
 
         movieService.addCategoryToMovie(m2, drama);
 
-        movieService.addCategoryToMovie(m3, comedy);
+        movieService.addCategoryToMovie(m3, comedy); */
 
         //  Show lists in UI
         categoryListView.getItems().setAll(movieService.getCategories());
@@ -105,8 +107,8 @@ public class MainViewController {
     }
 
     @FXML
-    public void onAddMovieClicked() {
-
+    public void onAddMovieClicked() throws SQLException {
+        MovieService movieService = new MovieService();
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Choose a movie file");
 
@@ -133,6 +135,7 @@ public class MainViewController {
                 categoryListView.getSelectionModel().getSelectedItem();
         if (selectedCategory != null) {
             movieService.addCategoryToMovie(newMovie, selectedCategory);
+
         }
 
         movieListView.getItems().setAll(movieService.getMovies());

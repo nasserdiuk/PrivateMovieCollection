@@ -1,7 +1,10 @@
 package bll;
 
+import dal.MovieDAO;
 import model.Category;
 import model.Movie;
+
+import java.sql.SQLException;
 import java.util.List;
 import java.util.ArrayList;
 import model.WarningType;
@@ -17,10 +20,12 @@ public class MovieService {
     private int nextMovieId = 1;
     private int nextCategoryId = 1;
 
-    public Movie addMovie(String title, double imdbRating, String fileLink) {
+    public Movie addMovie(String title,double imdbRating, String fileLink) throws SQLException {
         Movie movie = new Movie(nextMovieId, title, imdbRating, fileLink);
         nextMovieId++;
         movies.add(movie);
+        MovieDAO dao = new MovieDAO();
+        dao.create(title, imdbRating, "10", fileLink);
         return movie;
     }
     public void deleteMovie(Movie movie) {

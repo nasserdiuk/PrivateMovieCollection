@@ -15,11 +15,7 @@ public class TestLogic {
         Category action = service.addCategory("Action");
         Category drama = service.addCategory("Drama");
 
-        Movie m1 = service.addMovie("The Dark Knight", 9.0, "file.mp4");
-        service.addCategoryToMovie(m1, action);
 
-        Movie m2 = service.addMovie("Shawshank", 9.3, "file2.mp4");
-        service.addCategoryToMovie(m2, drama);
 
         List<Category> selected = new ArrayList<>();
         selected.add(action);
