@@ -12,50 +12,46 @@ import java.util.ArrayList;
 import model.WarningType;
 import java.time.LocalDate;
 
-
-
-
 public class MovieService {
 
     private final List<Movie> movies = new ArrayList<>();
     private final List<Category> categories = new ArrayList<>();
     private final CategoryDAO categoryDAO = new CategoryDAO();
+    private final MovieDAO movieDAO = new MovieDAO();
 
 
-    private int nextMovieId = 1;
-    private int nextCategoryId = 1;
 
     private final CatMovieDAO catMovieDAO = new CatMovieDAO();
 
     public void addCategoryToMovie(Movie movie, Category category) {
-        // update UI/in-memory
+
         movie.addCategory(category);
 
-        // persist relationship
+
         try {
             catMovieDAO.addCategoryToMovie(movie.getId(), category.getId());
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not link category to movie", e);
-        }
+        } catch (SQLException ignored) {}
+
     }
 
     public void removeCategoryFromMovie(Movie movie, Category category) {
         movie.removeCategory(category);
-
         try {
             catMovieDAO.removeCategoryFromMovie(movie.getId(), category.getId());
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not unlink category from movie", e);
+        } catch (SQLException ignored) {
+
         }
     }
 
 
 
     public Movie addMovie(String title, double imdbRating, String fileLink) throws SQLException {
-        MovieDAO dao = new MovieDAO();
 
-        int dbId = dao.create(title, imdbRating, 10.0, fileLink); // returns generated id
+        double notRated = -1.0;
+        int dbId = movieDAO.create(title, imdbRating, notRated, fileLink);
+
         Movie movie = new Movie(dbId, title, imdbRating, fileLink);
+        // movie already starts with personalRating = -1 in the constructor
 
         movies.add(movie);
         return movie;
@@ -63,19 +59,31 @@ public class MovieService {
 
 
 
+
     public void deleteMovie(Movie movie) {
-        movies.remove(movie);
+
+        if (movie == null) return;
+
+        try {
+            // delete in DB (also deletes links in CatMovie inside DAO)
+            movieDAO.deleteById(movie.getId());
+
+            // delete in memory
+            movies.remove(movie);
+
+        } catch (SQLException ignored) {
+
+        }
     }
 
     public Category addCategory(String name) {
         try {
-            int id = categoryDAO.create(name);     // insert into dbo.Category
+            int id = categoryDAO.create(name);
             Category created = new Category(id, name);
-
-            categories.add(created);               // update UI cache
+            categories.add(created);
             return created;
-        } catch (SQLException e) {
-            throw new RuntimeException("Could not create category", e);
+        } catch (SQLException ignored) {
+            return null;
         }
     }
 
@@ -193,13 +201,30 @@ public class MovieService {
         return categories;
     }
 
-    public void removeMovie(Movie movie) {
-        movies.remove(movie);
-    }
+
+
 
     public void removeCategory(Category category) {
+        if (category == null) return;
+
+        // Remove category from all movies (DB + memory)
+        for (Movie movie : movies) {
+            if (movie.getCategories().contains(category)) {
+                removeCategoryFromMovie(movie, category); // uses your existing method
+            }
+        }
+
+        // Delete category itself from DB
+        try {
+            categoryDAO.deleteById(category.getId());
+        } catch (SQLException ignored) {
+            // fail silently
+        }
+
+        // Remove from in-memory list
         categories.remove(category);
     }
+
 
 
 
@@ -222,6 +247,49 @@ public class MovieService {
         return getWarningType(movie) != WarningType.NONE;
     }
 
+    public void setPersonalRating(Movie movie, double rating) {
+        movie.setPersonalRating(rating);
+
+        try {
+            movieDAO.updatePersonalRating(movie.getId(), rating);
+        } catch (SQLException ignored) {
+
+        }
+    }
+
+    public void markAsViewed(Movie movie) {
+        LocalDate now = LocalDate.now();
+        movie.setLastView(now);
+
+        try {
+            movieDAO.updateLastView(movie.getId(), now);
+        } catch (SQLException ignored) {
+        }
+    }
+
+    public void loadMovies() {
+        try {
+            movies.clear();
+            movies.addAll(movieDAO.getAll());
+
+            for (Movie m : movies) {
+                m.getCategories().clear();
+                m.getCategories().addAll(catMovieDAO.getCategoriesForMovie(m.getId()));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void loadCategories() {
+        try {
+            categories.clear();
+            categories.addAll(categoryDAO.getAll());
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
 
 }
+
 

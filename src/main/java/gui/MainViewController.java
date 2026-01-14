@@ -1,26 +1,18 @@
 package gui;
 
-import javafx.fxml.FXML;
-import javafx.scene.control.ListView;
-import javafx.scene.control.TextField;
-import javafx.scene.control.SelectionMode;
-import javafx.scene.control.TextInputDialog;
-import model.Category;
 import bll.MovieService;
+import javafx.fxml.FXML;
+import javafx.scene.control.*;
+import javafx.stage.FileChooser;
+import model.Category;
 import model.Movie;
 
+import java.awt.Desktop;
+import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
-import bll.MovieService;
-import javafx.stage.FileChooser;
-import java.io.File;
 import java.util.Optional;
-import javafx.scene.control.Alert;
-import java.awt.Desktop;
-import java.io.IOException;
-import java.time.LocalDate;
-
-
 
 public class MainViewController {
 
@@ -28,21 +20,23 @@ public class MainViewController {
 
     @FXML private TextField txtTitle;
     @FXML private TextField txtMinRating;
-    @FXML
-    private ListView<Category> categoryListView;
-    @FXML
-    private ListView<Movie> movieListView;
+
+    @FXML private ListView<Category> categoryListView;
+    @FXML private ListView<Movie> movieListView;
+
     @FXML
     public void initialize() {
         categoryListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
+        movieService.loadCategories();
+        movieService.loadMovies();
 
-        //  Show lists in UI
         categoryListView.getItems().setAll(movieService.getCategories());
         movieListView.getItems().setAll(movieService.getMovies());
 
-
-
+        if (!movieListView.getItems().isEmpty()) {
+            movieListView.getSelectionModel().selectFirst();
+        }
     }
 
     @FXML
@@ -55,13 +49,18 @@ public class MainViewController {
             try {
                 minRating = Double.parseDouble(minRatingText);
             } catch (NumberFormatException e) {
-                System.out.println("Min Imdb must be a number");
+                System.out.println("Min IMDb must be a number");
                 return;
             }
         }
+
         List<Category> selectedCategories = categoryListView.getSelectionModel().getSelectedItems();
         List<Movie> filtered = movieService.filterMovies(titleText, minRating, selectedCategories);
         movieListView.getItems().setAll(filtered);
+
+        if (!movieListView.getItems().isEmpty()) {
+            movieListView.getSelectionModel().selectFirst();
+        }
     }
 
     @FXML
@@ -69,7 +68,12 @@ public class MainViewController {
         txtTitle.clear();
         txtMinRating.clear();
         categoryListView.getSelectionModel().clearSelection();
+
         movieListView.getItems().setAll(movieService.getMovies());
+
+        if (!movieListView.getItems().isEmpty()) {
+            movieListView.getSelectionModel().selectFirst();
+        }
     }
 
     @FXML
@@ -80,19 +84,23 @@ public class MainViewController {
             return;
         }
 
-        movieService.deleteMovie(selected);  
+        movieService.deleteMovie(selected);
+
+        movieService.loadMovies();
         movieListView.getItems().setAll(movieService.getMovies());
+
+        if (!movieListView.getItems().isEmpty()) {
+            movieListView.getSelectionModel().selectFirst();
+        }
     }
 
     @FXML
     public void onAddMovieClicked() throws SQLException {
-
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Choose a movie file");
         fileChooser.getExtensionFilters().add(
                 new FileChooser.ExtensionFilter("MP4 Videos (*.mp4)", "*.mp4", "*.MP4")
         );
-
 
         File file = fileChooser.showOpenDialog(movieListView.getScene().getWindow());
         if (file == null) return;
@@ -110,9 +118,7 @@ public class MainViewController {
 
         try {
             imdbRating = Double.parseDouble(imdbResult.get().trim());
-            if (imdbRating < 0 || imdbRating > 10) {
-                throw new NumberFormatException();
-            }
+            if (imdbRating < 0 || imdbRating > 10) throw new NumberFormatException();
         } catch (NumberFormatException e) {
             Alert alert = new Alert(Alert.AlertType.WARNING);
             alert.setTitle("Invalid rating");
@@ -122,9 +128,7 @@ public class MainViewController {
             return;
         }
 
-        List<Category> selectedCategories =
-                categoryListView.getSelectionModel().getSelectedItems();
-
+        List<Category> selectedCategories = categoryListView.getSelectionModel().getSelectedItems();
         if (selectedCategories == null || selectedCategories.isEmpty()) {
             Alert alert = new Alert(Alert.AlertType.INFORMATION);
             alert.setTitle("Select category");
@@ -137,7 +141,6 @@ public class MainViewController {
             return;
         }
 
-
         Movie newMovie = movieService.addMovie(
                 file.getName(),
                 imdbRating,
@@ -148,19 +151,31 @@ public class MainViewController {
             movieService.addCategoryToMovie(newMovie, category);
         }
 
+        movieService.loadMovies();
         movieListView.getItems().setAll(movieService.getMovies());
-    }
 
+        // Best-effort: keep selection on the added movie
+        movieListView.getSelectionModel().select(newMovie);
+        if (movieListView.getSelectionModel().getSelectedItem() == null && !movieListView.getItems().isEmpty()) {
+            movieListView.getSelectionModel().selectFirst();
+        }
+    }
 
     @FXML
     public void onSetRatingClicked() {
         Movie selected = movieListView.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            System.out.println("Select a movie first");
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("No movie selected");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select a movie first.");
+            alert.showAndWait();
             return;
         }
 
-        TextInputDialog dialog = new TextInputDialog();
+        TextInputDialog dialog = new TextInputDialog(
+                selected.hasPersonalRating() ? String.valueOf(selected.getPersonalRating()) : ""
+        );
         dialog.setTitle("Personal Rating");
         dialog.setHeaderText("Set personal rating for: " + selected.getTitle());
         dialog.setContentText("Enter rating (0-10):");
@@ -168,8 +183,12 @@ public class MainViewController {
         Optional<String> result = dialog.showAndWait();
         if (result.isEmpty()) return;
 
+        String text = result.get().trim();
+        if (text.isEmpty()) return;
+
         try {
-            double rating = Double.parseDouble(result.get().trim());
+            double rating = Double.parseDouble(text);
+
             if (rating < 0 || rating > 10) {
                 Alert alert = new Alert(Alert.AlertType.WARNING);
                 alert.setTitle("Invalid rating");
@@ -179,9 +198,7 @@ public class MainViewController {
                 return;
             }
 
-            selected.setPersonalRating(rating);
-
-            // refresh list
+            movieService.setPersonalRating(selected, rating);
             movieListView.refresh();
 
         } catch (NumberFormatException e) {
@@ -192,8 +209,8 @@ public class MainViewController {
             alert.showAndWait();
         }
     }
-    
-    @FXML 
+
+    @FXML
     public void onAddCategoryClicked() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Add Category");
@@ -201,9 +218,7 @@ public class MainViewController {
         dialog.setContentText("Name:");
 
         Optional<String> result = dialog.showAndWait();
-        if (result.isEmpty()) {
-            return; // user cancelled
-        }
+        if (result.isEmpty()) return;
 
         String name = result.get().trim();
         if (name.isEmpty()) {
@@ -227,36 +242,37 @@ public class MainViewController {
             }
         }
 
-        Category created = movieService.addCategory(name);
+        movieService.addCategory(name);
 
-        // refresh and select the newly added category
+        movieService.loadCategories();
         categoryListView.getItems().setAll(movieService.getCategories());
-        categoryListView.getSelectionModel().select(created);
     }
-    
 
     @FXML
     public void onDeleteCategoryClicked() {
         Category selected = categoryListView.getSelectionModel().getSelectedItem();
         if (selected == null) {
-            System.out.println("Select a category first");
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("No category selected");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select a category to delete.");
+            alert.showAndWait();
             return;
         }
 
-        // Remove this category from all movies
-        for (Movie m : movieService.getMovies()) {
-            if (m.getCategories().contains(selected)) {
-                movieService.removeCategoryFromMovie(m, selected);
-            }
-        }
-
-        // Remove the category itself
         movieService.removeCategory(selected);
 
-        // Update UI lists
+        movieService.loadCategories();
         categoryListView.getItems().setAll(movieService.getCategories());
-        movieListView.refresh();
+
+        movieService.loadMovies();
+        movieListView.getItems().setAll(movieService.getMovies());
+
+        if (!movieListView.getItems().isEmpty()) {
+            movieListView.getSelectionModel().selectFirst();
+        }
     }
+
     @FXML
     public void onPlayClicked() {
         Movie selected = movieListView.getSelectionModel().getSelectedItem();
@@ -290,14 +306,15 @@ public class MainViewController {
         }
 
         try {
-            if (Desktop.isDesktopSupported()) {
-                Desktop.getDesktop().open(file);
-            } else {
+            if (!Desktop.isDesktopSupported()) {
                 throw new UnsupportedOperationException("Desktop integration is not supported on this platform.");
             }
-            // update last viewed timestamp and refresh UI
-            selected.setLastView(LocalDate.now());
+
+            Desktop.getDesktop().open(file);
+
+            movieService.markAsViewed(selected);
             movieListView.refresh();
+
         } catch (IOException | UnsupportedOperationException e) {
             Alert alert = new Alert(Alert.AlertType.ERROR);
             alert.setTitle("Cannot play movie");

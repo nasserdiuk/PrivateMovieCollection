@@ -12,7 +12,7 @@ import java.sql.Connection;
                         conn.getMetaData().getDatabaseProductName());
 
             } catch (Exception e) {
-                System.out.println("❌ CONNECTION FAILED");
+                System.out.println(" CONNECTION FAILED");
                 e.printStackTrace();
             }
         }

@@ -174,28 +174,31 @@ public class MovieDAO {
         int id = rs.getInt("id");
         String title = rs.getString("title");
 
-        // imdbRating might be DECIMAL in DB; getBigDecimal is fine
         BigDecimal imdbBD = rs.getBigDecimal("imdbRating");
-        double imdb = imdbBD == null ? 0.0 : imdbBD.doubleValue();
+        double imdb = (imdbBD == null) ? 0.0 : imdbBD.doubleValue();
 
         String filePath = rs.getString("filePath");
 
         Movie m = new Movie(id, title, imdb, filePath);
 
-        // personalRating can be null
+
         BigDecimal personalBD = rs.getBigDecimal("personalRating");
         if (personalBD != null) {
-            m.setPersonalRating(personalBD.doubleValue());
+            double pr = personalBD.doubleValue();
+            if (pr >= 0) {
+                m.setPersonalRating(pr);
+            } else {
+                m.setPersonalRating(-1); // keep "not rated yet"
+            }
         } else {
-            // if your Movie supports "no rating" state:
-            // m.clearPersonalRating();
-            // otherwise leave default (often 0)
+            m.setPersonalRating(-1);
         }
 
         // lastViewed can be null
         Timestamp ts = rs.getTimestamp("lastViewed");
-        m.setLastView(ts.toLocalDateTime().toLocalDate());
+        m.setLastView(ts != null ? ts.toLocalDateTime().toLocalDate() : null);
 
         return m;
     }
+
 }

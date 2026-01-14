@@ -1,11 +1,15 @@
 package dal;
 
+import model.Category;
+
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CatMovieDAO {
     private final ConnectionManager cm = new ConnectionManager();
 
-    // Create link Movie <-> Category
+
     public void addCategoryToMovie(int movieId, int categoryId) throws SQLException {
         String sql = """
             INSERT INTO dbo.CatMovie (MovieId, CategoryId)
@@ -45,5 +49,32 @@ public class CatMovieDAO {
             ps.setInt(1, movieId);
             ps.executeUpdate();
         }
+    }
+
+
+    public List<Category> getCategoriesForMovie(int movieId) throws SQLException {
+        String sql = """
+            SELECT c.id, c.name
+            FROM dbo.Category c
+            JOIN dbo.CatMovie cm ON cm.CategoryId = c.id
+            WHERE cm.MovieId = ?
+            ORDER BY c.name
+            """;
+
+        List<Category> result = new ArrayList<>();
+
+        try (Connection conn = cm.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, movieId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new Category(rs.getInt("id"), rs.getString("name")));
+                }
+            }
+        }
+
+        return result;
     }
 }

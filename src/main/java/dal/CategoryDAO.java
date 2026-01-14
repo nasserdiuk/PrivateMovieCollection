@@ -14,9 +14,9 @@ public class CategoryDAO {
     public int create(String name) throws SQLException {
 
         String sql = """
-            INSERT INTO dbo.Category (name)
-            VALUES (?)
-            """;
+        INSERT INTO dbo.Category (name)
+        VALUES (?)
+        """;
 
         try (Connection conn = cm.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -24,19 +24,22 @@ public class CategoryDAO {
             ps.setString(1, name);
 
             int rows = ps.executeUpdate();
-            System.out.println("CategoryDAO.create() insert OK, rows=" + rows);
-
             if (rows != 1) {
                 throw new SQLException("Insert failed, rows affected: " + rows);
             }
 
             try (ResultSet keys = ps.getGeneratedKeys()) {
-                if (keys.next()) return keys.getInt(1);
+                if (keys.next()) {
+                    return keys.getInt(1);
+                }
             }
 
+            // Developer error – should never happen if DB is correct
             throw new SQLException("No generated key returned for Category insert.");
         }
     }
+
+
 
     public List<Category> getAll() throws SQLException {
         String sql = """

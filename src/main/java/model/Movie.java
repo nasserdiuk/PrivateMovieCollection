@@ -75,14 +75,18 @@ public class Movie {
 
     @Override
     public String toString() {
-        if (personalRating > 0) {
-            return title + "  |  Personal Rating: " + personalRating;
+        String imdbText = String.format("IMDb: %.1f", imdbRating);
+
+        if (hasPersonalRating()) {
+            return title + "  |  " + imdbText + "  |  Personal Rating: " + personalRating;
         } else {
-            return title;
+            return title + "  |  " + imdbText;
         }
     }
 
-
 }
+
+
+
 
 
