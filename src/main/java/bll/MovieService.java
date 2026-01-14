@@ -3,6 +3,8 @@ package bll;
 import dal.MovieDAO;
 import model.Category;
 import model.Movie;
+import dal.CategoryDAO;
+import dal.CatMovieDAO;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -12,31 +14,67 @@ import java.time.LocalDate;
 
 
 
+
 public class MovieService {
 
     private final List<Movie> movies = new ArrayList<>();
     private final List<Category> categories = new ArrayList<>();
+    private final CategoryDAO categoryDAO = new CategoryDAO();
+
 
     private int nextMovieId = 1;
     private int nextCategoryId = 1;
 
-    public Movie addMovie(String title,double imdbRating, String fileLink) throws SQLException {
-        Movie movie = new Movie(nextMovieId, title, imdbRating, fileLink);
-        nextMovieId++;
-        movies.add(movie);
+    private final CatMovieDAO catMovieDAO = new CatMovieDAO();
+
+    public void addCategoryToMovie(Movie movie, Category category) {
+        // update UI/in-memory
+        movie.addCategory(category);
+
+        // persist relationship
+        try {
+            catMovieDAO.addCategoryToMovie(movie.getId(), category.getId());
+        } catch (SQLException e) {
+            throw new RuntimeException("Could not link category to movie", e);
+        }
+    }
+
+    public void removeCategoryFromMovie(Movie movie, Category category) {
+        movie.removeCategory(category);
+
+        try {
+            catMovieDAO.removeCategoryFromMovie(movie.getId(), category.getId());
+        } catch (SQLException e) {
+            throw new RuntimeException("Could not unlink category from movie", e);
+        }
+    }
+
+
+
+    public Movie addMovie(String title, double imdbRating, String fileLink) throws SQLException {
         MovieDAO dao = new MovieDAO();
-        dao.create(title, imdbRating, "10", fileLink);
+
+        int id = dao.create(title, imdbRating, "10", fileLink); // make create return int id
+        Movie movie = new Movie(id, title, imdbRating, fileLink);
+
+        movies.add(movie);
         return movie;
     }
+
     public void deleteMovie(Movie movie) {
         movies.remove(movie);
     }
 
     public Category addCategory(String name) {
-        Category category = new Category(nextCategoryId, name);
-        nextCategoryId++;
-        categories.add(category);
-        return category;
+        try {
+            int id = categoryDAO.create(name);     // insert into dbo.Category
+            Category created = new Category(id, name);
+
+            categories.add(created);               // update UI cache
+            return created;
+        } catch (SQLException e) {
+            throw new RuntimeException("Could not create category", e);
+        }
     }
 
     public List<Movie> getMovies() {
@@ -161,13 +199,7 @@ public class MovieService {
         categories.remove(category);
     }
 
-    public void addCategoryToMovie(Movie movie, Category category) {
-        movie.addCategory(category);
-    }
 
-    public void removeCategoryFromMovie(Movie movie, Category category) {
-        movie.removeCategory(category);
-    }
 
     public WarningType getWarningType(Movie movie) {
         LocalDate last = movie.getLastView();

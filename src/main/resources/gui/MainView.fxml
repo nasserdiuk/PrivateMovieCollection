@@ -33,7 +33,7 @@
          <children>
             <Button fx:id="btnAddMovie" mnemonicParsing="false" onAction="#onAddMovieClicked" text="Add Movie" />
             <Button fx:id="btnDeleteMovie" mnemonicParsing="false" onAction="#onDeleteMovieClicked" text="Delete Movie" />
-            <Button fx:id="btnPlayMovie" mnemonicParsing="false" text="Play" />
+            <Button fx:id="btnPlayMovie" mnemonicParsing="false" onAction="#onPlayClicked" text="Play" />
             <Button fx:id="btnSetRating" mnemonicParsing="false" onAction="#onSetRatingClicked" text="Set Rating" />
             <Button fx:id="btnAddCategory" mnemonicParsing="false" onAction="#onAddCategoryClicked" text="Add Category" />
             <Button fx:id="btnDeleteCategory" mnemonicParsing="false" onAction="#onDeleteCategoryClicked" text="Delete Category" />

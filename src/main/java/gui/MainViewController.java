@@ -16,6 +16,9 @@ import javafx.stage.FileChooser;
 import java.io.File;
 import java.util.Optional;
 import javafx.scene.control.Alert;
+import java.awt.Desktop;
+import java.io.IOException;
+import java.time.LocalDate;
 
 
 
@@ -33,31 +36,6 @@ public class MainViewController {
     public void initialize() {
         categoryListView.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE);
 
-       /* //  TEST DATA: categories
-        movieService.addCategory("Action");
-        movieService.addCategory("Drama");
-        movieService.addCategory("Comedy");
-
-        //  TEST DATA: movies
-        movieService.addMovie("The Dark Knight", 9.0, "file.mp4");
-        movieService.addMovie("Shawshank", 9.3, "file2.mp4");
-        movieService.addMovie("Some Comedy", 6.0, "file3.mp4");
-
-        //  Connect categories to movies
-        Category action = movieService.getCategories().get(0);
-        Category drama  = movieService.getCategories().get(1);
-        Category comedy = movieService.getCategories().get(2);
-
-        Movie m1 = movieService.getMovies().get(0);
-        Movie m2 = movieService.getMovies().get(1);
-        Movie m3 = movieService.getMovies().get(2);
-
-        movieService.addCategoryToMovie(m1, action);
-        movieService.addCategoryToMovie(m1, drama);
-
-        movieService.addCategoryToMovie(m2, drama);
-
-        movieService.addCategoryToMovie(m3, comedy); */
 
         //  Show lists in UI
         categoryListView.getItems().setAll(movieService.getCategories());
@@ -108,34 +86,66 @@ public class MainViewController {
 
     @FXML
     public void onAddMovieClicked() throws SQLException {
-        MovieService movieService = new MovieService();
+
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Choose a movie file");
-
         fileChooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter(
-                        "MP4 Videos (*.mp4)", "*.mp4"
-                )
+                new FileChooser.ExtensionFilter("MP4 Videos (*.mp4)", "*.mp4", "*.MP4")
         );
 
+
         File file = fileChooser.showOpenDialog(movieListView.getScene().getWindow());
-        if (file == null) {
-            return; // user cancelled
+        if (file == null) return;
+
+        // Ask for IMDb rating
+        Double imdbRating;
+
+        TextInputDialog imdbDialog = new TextInputDialog("7.0");
+        imdbDialog.setTitle("IMDb Rating");
+        imdbDialog.setHeaderText("Set IMDb rating");
+        imdbDialog.setContentText("Enter IMDb rating (0–10):");
+
+        Optional<String> imdbResult = imdbDialog.showAndWait();
+        if (imdbResult.isEmpty()) return;
+
+        try {
+            imdbRating = Double.parseDouble(imdbResult.get().trim());
+            if (imdbRating < 0 || imdbRating > 10) {
+                throw new NumberFormatException();
+            }
+        } catch (NumberFormatException e) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Invalid rating");
+            alert.setHeaderText(null);
+            alert.setContentText("IMDb rating must be between 0 and 10.");
+            alert.showAndWait();
+            return;
         }
 
-        int n = movieService.getMovies().size() + 1;
+        List<Category> selectedCategories =
+                categoryListView.getSelectionModel().getSelectedItems();
+
+        if (selectedCategories == null || selectedCategories.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Select category");
+            alert.setHeaderText("No category selected");
+            alert.setContentText(
+                    "Please select one or more categories from the list\n" +
+                            "BEFORE clicking 'Add Movie'."
+            );
+            alert.showAndWait();
+            return;
+        }
+
 
         Movie newMovie = movieService.addMovie(
-                file.getName(),   // title = filename
-                7.0,              // test IMDb rating
+                file.getName(),
+                imdbRating,
                 file.getAbsolutePath()
         );
 
-        Category selectedCategory =
-                categoryListView.getSelectionModel().getSelectedItem();
-        if (selectedCategory != null) {
-            movieService.addCategoryToMovie(newMovie, selectedCategory);
-
+        for (Category category : selectedCategories) {
+            movieService.addCategoryToMovie(newMovie, category);
         }
 
         movieListView.getItems().setAll(movieService.getMovies());
@@ -246,5 +256,54 @@ public class MainViewController {
         // Update UI lists
         categoryListView.getItems().setAll(movieService.getCategories());
         movieListView.refresh();
+    }
+    @FXML
+    public void onPlayClicked() {
+        Movie selected = movieListView.getSelectionModel().getSelectedItem();
+        if (selected == null) {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("No movie selected");
+            alert.setHeaderText(null);
+            alert.setContentText("Please select a movie to play.");
+            alert.showAndWait();
+            return;
+        }
+
+        String path = selected.getFilePath();
+        if (path == null || path.trim().isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Invalid file");
+            alert.setHeaderText(null);
+            alert.setContentText("The selected movie doesn't have a valid file path.");
+            alert.showAndWait();
+            return;
+        }
+
+        File file = new File(path);
+        if (!file.exists()) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("File not found");
+            alert.setHeaderText(null);
+            alert.setContentText("The file could not be found:\n" + path);
+            alert.showAndWait();
+            return;
+        }
+
+        try {
+            if (Desktop.isDesktopSupported()) {
+                Desktop.getDesktop().open(file);
+            } else {
+                throw new UnsupportedOperationException("Desktop integration is not supported on this platform.");
+            }
+            // update last viewed timestamp and refresh UI
+            selected.setLastView(LocalDate.now());
+            movieListView.refresh();
+        } catch (IOException | UnsupportedOperationException e) {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Cannot play movie");
+            alert.setHeaderText("Failed to open the movie file");
+            alert.setContentText(e.getMessage());
+            alert.showAndWait();
+        }
     }
 }
