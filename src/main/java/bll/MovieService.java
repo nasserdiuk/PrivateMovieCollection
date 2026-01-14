@@ -54,12 +54,14 @@ public class MovieService {
     public Movie addMovie(String title, double imdbRating, String fileLink) throws SQLException {
         MovieDAO dao = new MovieDAO();
 
-        int id = dao.create(title, imdbRating, "10", fileLink); // make create return int id
-        Movie movie = new Movie(id, title, imdbRating, fileLink);
+        int dbId = dao.create(title, imdbRating, 10.0, fileLink); // returns generated id
+        Movie movie = new Movie(dbId, title, imdbRating, fileLink);
 
         movies.add(movie);
         return movie;
     }
+
+
 
     public void deleteMovie(Movie movie) {
         movies.remove(movie);
